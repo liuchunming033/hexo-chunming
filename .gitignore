@@ -1,0 +1,5 @@
+public/
+.vscode
+.idea
+.deploy_git
+.DS_Store

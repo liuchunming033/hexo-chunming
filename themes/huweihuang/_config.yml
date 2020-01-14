@@ -1,0 +1,12 @@
+
+# Code Highlight theme
+# Available value:
+#    normal | night | night yilia | night eighties | night blue | night bright
+# https://github.com/chriskempson/tomorrow-theme
+# night yilia - https://github.com/litten/hexo-theme-yilia
+highlight_theme: normal
+
+valine:
+  enable: false
+  app_id: 1irHE3lmKdQ5E7rnMRPYubMP-gzGzoHsz 
+  app_key: PX7Aiw7MRtFLGBsmTpGiT11M

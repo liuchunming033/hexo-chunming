@@ -1,0 +1,588 @@
+---
+title: "如何定制和管理基于Allure框架的自动化测试报告"
+catalog: true
+toc_nav_num: true
+date: 2019-04-16 19:51:24
+subtitle: "基于Pytest+Allure+Django Rest framework+Vue定制和管理自动化测试报告"
+header-img: "/img/article_header/computer.jpg"
+tags:
+- 软件测试
+- Allure
+- Pytest
+- Vue
+- Django
+catagories:
+- 软件测试
+---
+
+>对于软件测试来说，测试报告是非常重要的工作产出。一个漂亮、清晰、格式规范的测试报告，不仅能够方便定位缺陷的位置，也方便开发人员和测试人员进行沟通。我认为，一份完整的自动化测试报告应该包含以下几个方面：
+> - *测试总体结论。* 用来标识本次测试是通过还是失败。
+> - *测试概要信息。* 用来统计本次测试通过的用例的数量、失败的用例数量、Skipped的用例数量等。
+> - *用例具体信息。* 用来表示每条自动化测试用例执行结果、测试所用的数据、测试的执行步骤等，以及失败情况下的错误信息。
+> - *时间相关信息。* 表示本次测试花了多长时间、什么时候开始的。
+> - *测试环境信息。* 表示本次测试相关的测试配置和测试环境。
+ 
+本篇文章将介绍如何将开源的测试报告框架Allure与Python的单元测试框架PyTest结合，生成信息丰富、格式美观、非常实用的测试报告，以及如何对所有的测试报告进行存档管理。
+通过这篇文章的介绍，你将能够：
+ - 将Allure与Pytest测试框架相结合；
+ - 定制Allure测试报告；
+ - 生成和查看Allure格式的测试报告；
+ - 对所有的自动化测试报告进行统一管理。
+ 
+## 安装Allure及Pytest插件
+### 安装Allure命令行工具
+ [Allure](http://allure.qatools.ru/)是一款非常轻量级并且非常灵活的开源测试报告生成框架。它支持绝大多数测试框架，例如TestNG、Pytest、JUint等。它简单易用，易于集成。在本小节，我们来安装Allure以及Pytest的插件allure-pytest。
+在MacOS上安装Allure，推荐使用Homebrew包管理器：
+```shell
+brew install allure
+```
+在Linux安装Allure，推荐对应的发行版包管理器进行安装，比如Debian发行版使用apt安装：
+```shell
+sudo apt update 
+sudo apt install software-properties-common
+sudo apt-add-repository ppa:qameta/allure
+sudo apt install allure
+```
+还有一种方式，是通过下载源码安装，[下载地址](http://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/)：
+将下载的安装包进行解压缩，然后将压缩包的bin目录放到系统变量PATH中即可。比如我下载的是/allure-2.9.0，那么我将`/allure-2.9.0/bin`加入到PATH变量中就可以使用allure命令了。
+通过上面几种方法，安装完成后，可以通过下面的命令查看是否安装成功，如果成功将会输出版本号。
+```shell
+allure --version
+```
+### 安装pytest插件
+Pytest是Python的单元测试框架，非常方便和易用。强烈推荐对于用Python进行测试工作的小伙伴使用这个测试框架，相比与Python自带的UnitTest好用太多太多。后面我将用一整篇文章介绍Pytest测试框架。
+将Allure集成到Pytest中的办法是安装PyTest的插件[allure-pytest](https://pypi.org/project/allure-pytest/)。通过它可以生成Allure所需要的用于生成测试报告的数据。安装方法：
+```
+$ pip install allure-pytest
+```
+> 注意：如果你之前安装过pytest-allure-adaptor，那么先将其卸载之后再安装allure-pytest，否则会出错。
+
+这样有关测试报告用到的库都已经安装好了。接下来就可以定制测试报告了。
+
+## 定制测试报告
+[allure-pytest](https://pypi.org/project/allure-pytest/)官网中详细介绍了所具有的功能。本篇文章不会再翻译一遍，而是从实际入手，给大家介绍如何将allure常用的功能应用到测试报告中。
+
+### 测试报告中展示被测需求和功能点
+我们可以在测试类上面使用装饰器`@allure.feature()`和`@allure.story()`来描述这个测试类对应的测试需求和被测试功能点。比如下面的脚本test_demo.py：
+
+```python
+import allure
+
+@allure.feature('购物车功能')  # feature描述测试类对应的被测试需求
+class TestShopTrolley(object):
+    @allure.story('加入购物车')  # story描述测试方法对应的功能点
+    def test_add_shopping_trolley(self):
+        pass
+
+    @allure.story('修改购物车')
+    def test_edit_count_in_shopping_trolley(self):
+        """
+        这是测试修改购物车功能的测试用例，用户可以修改添加到购物车中的商品数量
+        """
+        pass
+
+    @allure.story('修改购物车')
+    def test_edit_goods_in_shopping_trolley(self):
+        """
+        这是测试修改购物车功能的测试用例，用户可以修改添加到购物车中的商品种类
+        """
+        pass
+
+    @allure.story('删除购物车')
+    def test_delete_shopping_trolley(self):
+        pass
+
+    @allure.story('查看购物车')
+    def test_list_shopping_trolley(self):
+        pass
+```
+上面代码中，使用`@allure.feature()`对测试类TestShopTrolley进行装饰，feature()函数的参数说明这个测试类对应的测试需求是购物车功能。测试类里面可以用`@allure.story()`对测试方法进行分组，同一个功能点的测试方法用同样的`@allure.story()`进行装饰，比如上面的修改购物车功能点包含两个测试方法。Allure还可以将测试方法的Docstring输出到测试报告中，这一点非常有用，我们可以在Docstring中给测试方法添加更加详细地说明。
+现在，我们来执行上面的测试脚本并生成测试报告，来看看测试报告中的具体展示形式。要想查看测试报告，需要执行下面三个命令，这三个命令将在文章后面详细介绍，这里先知道如何使用：
+```shell
+py.test test_demo.py::TestShopTrolley --alluredir=./allure-results
+allure generate ./allure-results -o ./allure-report/ --clean
+allure open allure-report/
+```
+执行完上面的三条命令后，你的浏览器将会打开一个测试报告页面，点击进入到Behaviors页面，可以看到如下的内容：
+![](/img/article/Behavior1.png)
+页面左边显示了测试的需求（购物车功能）和测试功能点（修改购物车、删除购物车、加入购物车、查看购物车）以及每个测试功能点下面对应的测试方法。报告右边展示了每一条测试用例详细的内容，其中的Description字段正是测试方法的Docstring的内容。
+
+### 测试报告中展示测试步骤
+测试步骤是测试报告中非常重要的信息，测试步骤能够让报告阅读者了解测试用例的执行流程。Allure支持在测试报告中展示测试用例的步骤，并且对于执行失败的步骤以特殊颜色展示，报告阅读者很容易看出失败的具体位置。我们对test_demo.py脚本中test_add_shopping_trolley测试方法添加一些步骤，形成如下代码：
+```python
+import allure
+
+@allure.feature('购物车功能')  # feature描述测试类对应的被测试需求
+class TestShopTrolley(object):
+    @allure.story('加入购物车')  # story描述测试方法对应的功能点
+    def test_add_shopping_trolley(self):
+        login('刘春明', '密码')  # 步骤1
+        with allure.step("浏览商品"):  # 步骤2
+            pass
+        with allure.step("点击商品"):  # 步骤3
+            pass
+        with allure.step("校验结果"):
+            assert 'success' == 'failed'
+
+    @allure.story('修改购物车')
+    def test_edit_count_in_shopping_trolley(self):
+        """
+        这是测试修改购物车功能的测试用例，用户可以修改添加到购物车中的商品数量
+        """
+        pass
+
+    @allure.story('修改购物车')
+    def test_edit_goods_in_shopping_trolley(self):
+        """
+        这是测试修改购物车功能的测试用例，用户可以修改添加到购物车中的商品种类
+        """
+        pass
+
+    @allure.story('删除购物车')
+    def test_delete_shopping_trolley(self):
+        pass
+
+    @allure.story('查看购物车')
+    def test_list_shopping_trolley(self):
+        pass
+
+
+@allure.step('用户登录')  # 将函数作为一个步骤，调用此函数时，报告中输出一个步骤，步骤名字通常step函数的参数名
+def login(user, pwd):
+    """
+    这是一个登陆函数，可以在测试用例中调用
+    """
+    print("用户名:" + user + "密码" + pwd)
+```
+上面的代码中，我们通过`with allure.step()`给test_add_shopping_trolley测试方法添加了步骤2和步骤3，并用`@allure.step()`对登陆函数进行装饰，形成"步骤函数"，通过在测试方法中引用步骤函数login给测试方法添加了步骤1。
+再次执行下面的命令，生成并查看测试报告：
+```shell
+py.test test_demo.py::TestShopTrolley --alluredir=./allure-results
+allure generate ./allure-results -o ./allure-report/ --clean
+allure open allure-report/
+```
+![](/img/article/allure-step1.png)
+在打开的测试报告中，点击test_add_shopping_trolley测试方法，在报告右侧的详细信息中，可以看到我们添加的3个测试步骤。而且步骤1还打印出来了对应的参数。因为这个测试方法的断言失败了，在右侧详细信息顶部，还打印出来了断言失败的具体信息，这对于查看失败的测试用例的原因非常友好。
+
+Python的单元测试框架Pytest框架提供了fixture和finalizer机制，这个机制能够让测试用例开发者在测试用例开始和结束后做些必要的工作。Allure也会将fixture和finalizer函数作为执行步骤自动添加到测试报告的Set up和Tear down中，让我们来看一个带fixture和finalizer的例子，给上面的test_demo.py脚本添加一个session级别和一个class级别的的fixture和finalizer，形成下面的脚本：
+```python
+import allure
+import pytest
+
+
+@pytest.fixture(scope='session')
+def session_scope_fixture_with_finalizer(request):
+    print("测试session开始前，向系统中添加一些商品数据")
+
+    def session_finalizer_fixture():
+        print("测试session结束了，删除系统中商品数据")
+
+    request.addfinalizer(session_finalizer_fixture)
+
+@allure.feature('购物车功能')  # feature描述测试类对应的被测试需求
+class TestShopTrolley(object):
+    @pytest.fixture(scope='class')
+    def class_scope_fixture_with_finalizer(self, request):
+        print("测试类开始前，准备工作")
+
+        def class_finalizer_fixture():
+            print("测试类结束了，清理工作")
+
+        request.addfinalizer(class_finalizer_fixture)
+
+    @allure.story('加入购物车')  # story描述测试方法对应的功能点
+    def test_add_shopping_trolley(self):
+        login('刘春明', '密码')  # 步骤1
+        with allure.step("浏览商品"):  # 步骤2
+            pass
+        with allure.step("点击商品"):  # 步骤3
+            pass
+        with allure.step("校验结果"):
+            assert 'success' == 'failed'
+
+    @allure.story('修改购物车')
+    def test_edit_count_in_shopping_trolley(self):
+        """
+        这是测试修改购物车功能的测试用例，用户可以修改添加到购物车中的商品数量
+        """
+        pass
+
+    @allure.story('修改购物车')
+    def test_edit_goods_in_shopping_trolley(self):
+        """
+        这是测试修改购物车功能的测试用例，用户可以修改添加到购物车中的商品种类
+        """
+        pass
+
+    @allure.story('删除购物车')
+    def test_delete_shopping_trolley(self,
+                                     session_scope_fixture_with_finalizer,
+                                     class_scope_fixture_with_finalizer):
+        pass
+
+    @allure.story('查看购物车')
+    def test_list_shopping_trolley(self):
+        pass
+
+
+@allure.step('用户登录')  # 将函数作为一个步骤，调用此函数时，报告中输出一个步骤，步骤名字通常是函数名
+def login(user, pwd):
+    """
+    这是一个登陆函数，可以在测试用例中调用
+    """
+    print("用户名:" + user + "密码" + pwd)
+```
+依然是执行下面的命令生成报告：
+```shell
+py.test test_demo.py::TestShopTrolley --alluredir=./allure-results
+allure generate ./allure-results -o ./allure-report/ --clean
+allure open allure-report/
+```
+查看测试报告
+![](/img/article/allure-fixture-finalizer.png)
+测试报告中，点击test_delete_shopping_trolley测试方法，在右侧详情部分，新增了一个Set up部分，新增了一个Tear down部分。Set up部分包含的是fixture函数，执行的是测试用例开始前执行的工作，Tear down部分是finalizer函数，执行的是测试用例完成后的工作。测试报告详情中有了这部分步骤，使得测试用例执行的整个过程更加清晰。
+
+### 测试报告中展示关键数据
+有些时候，我们希望在执行关键的测试步骤时，能够将执行产生的中间结果、测试中的截图，以及预期值与实际值等关键数据输出到测试报告中。这对于我们分析测试步骤执行的具体情况非常有帮助。Allure提供了attachment特性，使用`allure.attach()`函数向测试报告中输出一些附加的信息，具体的用法我们来看下面的例子：
+```python
+import allure
+
+def test_eval_case(inputed, expected):
+    with allure.step("计算输入的表达式"):
+         actual = eval(inputed)
+    with allure.step("校验计算的结果"):
+         allure.attach(str(actual), "实际结果是：", allure.attachment_type.TEXT)
+         allure.attach(str(expected), "期望结果是：")
+         assert actual == expected
+```
+这个例子中，测试的实际结果和期望结果被输出到了"校验计算的结果"的步骤当中，其实我们可以在任何地方添加`allure.attach()`函数。函数包含三个参数，第一个参数是输出的内容，第二个参数是提示信息，第三个是第一个参数的格式说明，可以是文本、HTML、图片等。生成的测试报告请参考下面这张图：
+![](/img/article/allure-attach.png)
+在测试报告"校验计算的结果"步骤下，有两个提示信息，其中一个是"实际结果是："，另外一个是"期望结果是："，并且分别将实际结果和期望结果展示出来了。通常在接口自动化测试中attachment通常是TEXT格式，在APP或者WEB自动化测试中除了常用到TEXT格式外，图片格式也是非常常用的，用来输出一些网页和APP的截图。
+
+### 测试报告中展示测试用例名称
+在前面的测试报告中，报告左边栏都是层级展示的，最底一层就是测试用例的名字。默认情况下，测试用例名称是测试方法名。当我们利用pytest的parametrization特性对测试用例进行参数化时，测试用例名称是测试方法名和id的拼接。我们来看一个例子：
+```python
+import pytest
+
+class TestParametrizedClass(object):
+    @pytest.mark.parametrize("content,expected", [
+        ("3+5", 8),
+        ("2+4", 6),
+        ("6*9", 42)
+    ], ids=["计算3+5", "计算2+4", "计算6*9"])
+    def test_parametrized_test_case(self, content, expected):
+        assert eval(content) == expected
+```
+执行上面的测试用例，生成并查看测试报告如下：
+![](/img/article/allure-casename.png)
+从测试报告中，可以看到，测试用例的名字是测试方法名与中括号括起来的ids拼接而成的，如果测试方法名字能够代表测试用例的意思，这样写是没有问题的。并且这种方法非常简单，并不需要对测试用例进行任何修改。
+
+但是如果测试方法的名字并不能直观体现测试用例的意图，那么我们可以利用Allure提供的title()方法，手工添加测试用例名称。我们来看下下面这段代码：
+```python
+import allure
+import pytest
+
+@allure.title("计算加法的测试用例: {param1} 加 {param2}，期望值是{expected}")
+@pytest.mark.parametrize('param1,param2,expected', [
+        (2, 2, 4),
+        (1, 2, 5)
+    ])
+def test_with_title(param1, param2, expected):
+    assert param1 + param2 == expected
+```
+这段代码通过@allure.title()函数自定义了一个测试用例名称，title函数的参数是一个字符串，字符串可以用{}引用测试方法的参数，在测试报告中会用实际值对参数进行替换。下面我们看一下在测试报告中是如何呈现的：
+![](/img/article/allure-casetitle.png)
+在测试报告中我们看到两条测试用例，这是pytest的parametrize的机制，这两条测试用例名称是我们在title()函数传的字符串，并使用实际的参数对param1、param2和expected进行了替换。通过title()函数手工指定测试用例名称，在某些测试方法名无法准确描述测试用例意图的情况下非常好用。
+
+### 测试报告中添加外部链接
+有时候，测试报告中的测试用例并不能完整描述与之相关的所有信息。我们可能需求添加一些超级链接，连接到外部相关网页，来对测试用例进行描述。比如，自动化测试用例希望对已有的Testlink或者其他测试用例管理软件中的手工测试用例进行关联，或者自动化测试用例是针对某一个BUG设计的，需要与JIRA中的BUG相关联。亦或者想要将自动化测试用例与被测功能的PRD或者Wiki相关联。
+Allure提供了三种链接外部网页的功能，分别是`@allure.issue()`可以连接到BUG链接，`@allure.link()`可以链接到外部PRD文档或者wiki等，`@allure.testcase()`可以链接到手工测试用例。下面我们看如何在测试用例中使用。
+```python
+import allure
+
+@allure.issue('https://jira.com/browse/JIRA-25809', 'JIRA上的BUG链接')
+@allure.link('https://www.confluence.com/watch?v=Su5p2TqZxKU', name='PRD相关文档或Wiki')
+@allure.testcase("http://testlink.net/case/123", '连接到手工测试用例')
+def test_allure_hyperlink():
+    pass
+```
+上面代码中展示了@allure.issue、@allure.link、@allure.testcase的用法。他们分别携带了两个参数，第一个参数是链接地址，第二个参数是链接文案。上面的代码生成的测试报告如下：
+![](/img/article/allure-link.png)
+从报告中可以看出link和testcase的超级链接的样式，在视觉上并没有不同。issue类型的超级链接是在链接文案前面有一个小虫子的图标。点击这三个超级链接，都能跳转到对应的页面。
+
+### 测试报告中展示测试执行环境
+测试执行环境通常指的是测试使用的浏览器、操作系统以及被测试服务所在的环境（比如component环境、集成测试环境、预发布环境等）。测试执行环境相关信息应该展示到测试报告中，用来说明测试报告是针对哪一个测试环境的。目前allure-pytest插件并不支持将测试执行环境展示到测试报告中。不过有一种比较麻烦的办法可以实现，这里我们先不介绍了。等allure-pytest插件支持了我们再介绍。
+
+上面我们介绍了allure定制测试报告时的常用功能。在我们定制自己的测试报告时，上面介绍的特性不一定要全部用到，可以按照自己对测试报告的要求，来适当添加某些特性到你的测试用例中。
+
+## 本地生成Allure测试报告
+前面我们使用三行命令来生成并查看测试报告。这一节我们介绍下那三个命令的作用和用法。生成allure测试报告，需要分两步，第一步生成原始数据，第二步渲染出html网页。
+### 生成报告原始数据
+测试用例中添加了Allure特性之后，在执行测试的时候需要先生成Allure报告所需要的测试结果数据。在py.test执行测试的时候，指定--alluredir选项及测试数据保存的目录即可：
+```
+$ py.test test/ --alluredir ./allure-result/
+```
+另外，还可以执行指定features或者stories执行一部分测试用例，比如执行‘购物车功能’下的‘加入购物车’子功能的测试用例：
+```
+$ py.test test/ --allure_features='购物车功能' --allure_stories='加入购物车' --alluredir ./allure-result/
+```
+### 生成HTML格式报告
+./allure-result/中保存了测试结果数据。接着，执行利用上面命令产生的测试结果数据./allure-result/生成Html测试报告：
+```shell
+$ allure generate ./allure-result/ -o ./allure-report/ --clean
+```
+可以通过allure open命令打开测试报告：
+```
+$ allure open -h 127.0.0.1 -p 8083 ./allure-report/
+```
+allure open命令其实是在本地起了一个jetty服务器，-h选项指定了服务器的地址，-p选项指定了服务器的端口号。命令最后是测试报告的静态文件路径。
+
+## 测试报告解读
+打开生成的测试报告后，浏览器被自动调起，展示测试报告。下面我们分别看看测试报告的几个重要页面。
+
+### 首页
+![这里写图片描述](http://img.blog.csdn.net/20180320200100881?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl1Y2h1bm1pbmcwMzM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+首页中展示了本次测试的测试用例数量，成功用例、失败用例、跳过用例的比例，测试环境信息，SUITES，FEATURES BY STORIES等基本信息，当与Jenkins做了持续集成后，TREND区域还将显示历次测试的情况。
+首页的左边栏，还从不同的维度展示测试报告的其他信息，大家可以自己点进去看看。
+### Behaviors页
+点击一下FEATURES BY STORIES，将进入Behaviors页面，这个页面按照FEATURES和 STORIES展示测试用例的执行结果：
+![这里写图片描述](http://img.blog.csdn.net/20180320200600472?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl1Y2h1bm1pbmcwMzM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+从这个页面可以看到“购物车功能”这个FEATURES包含的三个STORIES的测试用例执行情况。
+### Suites页
+Allure测试报告将每一个测试脚本，作为一个Suite。在首页点击Suites区域下面的任何一条Suite，都将进入Suites页面。
+![这里写图片描述](http://img.blog.csdn.net/20180320201059219?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl1Y2h1bm1pbmcwMzM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+这个页面展示本次所有的测试用例执行情况。
+### 测试用例页
+ 在Suites页面上点击任何一条测试用例，Suites页面的右侧将展示这条用例的详细执行情况。
+![这里写图片描述](http://img.blog.csdn.net/20180320201409629?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl1Y2h1bm1pbmcwMzM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+从这个页面可以看到测试用例执行的每一个步骤，以及每个步骤的执行结果。测试用例为什么失败，这里一目了然。
+
+## 利用Jenkins生成测试报告
+### 安装配置Jenkins插件
+前面我们通过命令行方法生成测试报告，通常是在本地调试时候使用。而真正的自动化测试一定是与持续集成相结合的，比如利用Jenkins进行测试的自动执行。
+要想在持续集成中自动生成测试报告，首先需要给Jenkins安装Allure Plugin。在Jenkins的插件管理页面，搜索“allure”，在搜索结果页，选择“Allure Jenkins Plugin”进行安装。
+安装完成之后重启一下Jenkins。
+在Jenkins的“全局工具管理”页面，找到Allure Commandline模块进行安装：
+![这里写图片描述](http://img.blog.csdn.net/20180320175830037?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl1Y2h1bm1pbmcwMzM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+点击后，弹出下面的页面，输入Allure的命令别名和版本后，点击Apply 和Save。
+![这里写图片描述](http://img.blog.csdn.net/20180320180250524?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl1Y2h1bm1pbmcwMzM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+### Job配置
+在Jenkins的job配置页面，在Excute Shell中指定测试报告数据保存的路径，在构建后操作部分选择加上allure-report插件，在插件的Results部分的Path框中填写对应的测试报告数据目录。如下图所示：
+![这里写图片描述](http://img.blog.csdn.net/20180320182135772?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl1Y2h1bm1pbmcwMzM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+这样，我们的Jenkins Job执行完测试用例时候，将在Job的主页面上看到Allure Report图标，点击进去就看到了Allure Report报告。
+![这里写图片描述](http://img.blog.csdn.net/20180320182403557?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl1Y2h1bm1pbmcwMzM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+
+至此，我们完成了测试报告的定制、生成和查看的所有步骤。Allure报告支持很多测试框架，除了上面介绍的与Pytest集成的方法外，Allure还可以与TestNG、Nose、Mocha等多种测试框架集成，生成格式一致统一的测试报告。
+
+## 测试报告管理平台
+我们希望能够把历次的测试报告进行存档和保留，方便查询、对软件的质量进行度量和对测试工作进行统计。
+
+测试报告管理平台，按照报告生成时间倒序展示所有项目的测试报告，并支持按照测试项目进行搜索。每一份测试报告基本信息包括：项目名称、报告时间、测试时长、测试结果、统计信息，下图是测试报告管理页面的例子：
+![](/img/article/allure-report-platform.png)
+这个页面按照报告生成的时间倒序将测试报告展示在列表上。页面上方，可以输入项目名称进行搜索。每一份测试报告包含了测试报告的生成时间，测试执行的时长，测试的结果（exitcode）、测试统计信息（passed、skipped、failed、xfailed用例数量）、测试用例总数。查看详情按钮可以跳转到allure测试报告页面。按钮颜色表示本次测试是通过还是失败，绿色表示所有测试用例都通过，红色表示有的测试用例失败了。
+
+下面我们就来基于Django REST framework和Vue来实现测试报告的展示和管理平台。
+### 存储和获取测试报告元数据
+测试报告管理平台测试报告列表页面上的信息，可以通过pytest的插件[pytest-json-report](https://pypi.org/project/pytest-json-report/)获得。pytest-json-report不仅可以获得我们需要的基本信息，还包括每条测试用例的结果以及测试用例失败的原因，内容非常丰富。不过在这里，我们只利用它的基础信息，更加详细的信息在allure报告中查看。
+
+这个插件的使用方法是用pytest执行测试时指定`--json-report`选项，这样将会在测试项目的根目录下产生.report.json文件。同时会将这个文件的内容存储到了pytest的session对象的_report_json属性中。我们可以将pytest-json-report生成的测试结果存储到mongodb中以达到持久化存储的目的。
+pytest中有一个Hook函数叫作`pytest_sessionfinish`，在这个函数中可以实现一些测试执行结束之后的工作。比如存储_report_json中的测试结果到mongodb中，就可以在这个函数中实现。下面是示例代码：
+```python
+import pymongo
+
+def pytest_sessionfinish(session):
+    if hasattr(session.config, '_json_report'):
+        json_report = getattr(session.config, '_json_report')
+        json_report.report["start_time"] = getattr(json_report, "_start_time")
+        json_report.report['project'] = json_report.report['root'].split('/')[-1]
+        client = pymongo.MongoClient('localhost', port=27017)
+        db = client['pangu_test']
+        collection = db["report"]
+        collection.insert(json_report.report)
+```
+在测试执行完成后，`pytest_sessionfinish`被自动执行，我们从session.config中拿到_json_report的内容存到json_report中，并给json_report的report属性设置start_time和project属性，分别代表测试执行的开始时间和项目名称，之后将json_report.report的内容存出到mongodb的pangu_test数据库的叫作"report"的collection中。
+我们来看一看在mongodb中保存的测试报告数据内容：
+![](/img/article/report-meta-data.png)
+从图中可以看到，报告内容还是很丰富的。测试报告管理平台中会用到created（测试报告生成时间）、duration（测试执行的时长）、exitcode（测试的结果）、project（项目名称）、summary（测试结果统计信息）和start_time(测试开始执行的时间)这些字段。接着，需要一个接口给测试报告管理平台提供这些字段。
+
+下面是用Django REST framework实现这个接口核心代码：
+```python
+import time
+import pymongo
+
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+
+@api_view(['GET'])
+def reports_list(request):
+    client = pymongo.MongoClient('localhost', port=27017)
+    db = client['pangu_test']
+    collection = db["report"]
+    result = []
+    if request.method == 'GET':
+        params = request.query_params
+        project_name = params.get('project')
+        count = int(params.get('count', 3))
+        offset = int(params.get('offset', 0))
+        select_keys = {'_id': 0,
+                       'start_time': 1,
+                       'created': 1,
+                       'duration': 1,
+                       'exitcode': 1,
+                       'summary': 1,
+                       'project': 1}
+        query_params = {}
+        if params.get('project'):
+            query_params = {'project': project_name}
+        reports = collection.find(query_params, select_keys, skip=offset, limit=count).sort('created', pymongo.DESCENDING)
+        for report in reports:
+            result.append(report)
+            report['detail_url'] = 'http://pangu.nioint.com/allure-reports/{project}_{created}/'.format(
+                 project=report.get('project'), created=report.get('created'))
+        return Response(status=status.HTTP_200_OK, data={"data": result,
+                                                         "server_time": int(time.time() * 1000),
+                                                         "count": reports.count()})
+
+```
+这个接口需要以倒序的方式返回所有项目的历史测试报告元数据data以及测试报告总数count，并且支持分页。调用该接口的Response如下：
+```shell
+{
+    "data": [
+        {
+            "created": 1555659430.730386,
+            "duration": 0.31386709213256836,
+            "project": "remote_vechile",
+            "exitcode": 1,
+            "summary": {
+                "failed": 2,
+                "xpassed": 1,
+                "skipped": 1,
+                "passed": 2,
+                "total": 6
+            },
+            "start_time": 1555659430.416519
+        },
+        {
+            "created": 1555658557.2307599,
+            "duration": 0.3194386959075928,
+            "project": "vechile_control",
+            "exitcode": 1,
+            "summary": {
+                "failed": 2,
+                "xpassed": 1,
+                "skipped": 1,
+                "passed": 2,
+                "total": 6
+            },
+            "start_time": 1555658556.9113212
+        }
+    ],
+    "server_time": 1556014510678,
+    "count": 174
+}
+```
+这样我们实现了测试报告元数据的存储和获取，下面我们事先allure报告的存储和获取。
+### 存储测试报告静态文件
+在上面的`pytest_sessionfinish`函数中，可以添加一些语句，来生成Allure格式测试报告，并通过接口上传到服务器的某个路径下。现在`pytest_sessionfinish`的代码如下：
+```python
+import os
+import pymongo
+import subprocess
+
+def pytest_sessionfinish(session):
+    if hasattr(session.config, '_json_report'):
+        json_report = getattr(session.config, '_json_report')
+        json_report.report["start_time"] = getattr(json_report, "_start_time")
+        json_report.report['project'] = json_report.report['root'].split(os.sep)[-1]
+        client = pymongo.MongoClient('localhost', port=27017)
+        db = client['pangu_test']
+        collection = db["report"]
+        collection.insert(json_report.report)
+        # 以下是生成并上传allure报告到服务器
+        allure_report_dir = os.path.join(str(session.config.rootdir), "allure-report")
+        allure_result = os.path.join(str(session.config.rootdir), session.config.getoption("--alluredir"))
+        allure_report = "{0}_{1}".format(session.name, json_report.report['created'])
+        subprocess.Popen("$(which allure) generate {1} -o {0} --clean "
+                   "&& $(which tar) -zcf {0}.tar.gz {0} "
+                   "&& $(which curl) -X POST 'http://localhost:5000/upload' -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' -F 'file=@{0}.tar.gz'".format(
+                       allure_report, allure_result),
+                   shell=True,
+                   cwd=allure_report_dir)
+```
+新增加的代码核心的功能是生成测试报告、压缩并通过接口http://localhost:5000/upload上传到服务器上，在服务器上测试报告以项目名加创建时间来命名以避免重名。下面我们看看上传文件的示例代码：
+```python
+import time
+import tarfile
+import os
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.views.decorators.csrf import csrf_exempt
+
+@api_view(['POST'])
+@csrf_exempt
+def upload_file(request):
+    data = {}
+    file_obj = request.FILES.get('file', None)
+    filename = './{}'.format(file_obj)
+    file_path = "/Users/chunming.liu/pi/reportapi/"
+    with open(filename, 'wb+') as f:
+        for chunk in file_obj.chunks():
+            f.write(chunk)
+    with tarfile.open("{}".format(filename)) as f:
+        f.extractall(file_path)
+    data['upload_path'] = os.path.join(file_path, f.name)
+    return Response(status=status.HTTP_200_OK, data={"data": data, "server_time": int(time.time() * 1000)})
+```
+这段代码利用利用rest_framework框架实现了一个上传文件的视图函数upload_file，将allure测试报告的压缩包上传到服务器的/data/app/pangu/allure-reports/目录里面。然后在urls.py中设置好路由`path('upload', upload_file)`就可以了。
+
+使用Postman来测试一下接口，用POST方法请求http://127.0.0.1:8000/upload，请求体选择form-data类型并传递参数file以及测试报告压缩文件：
+![](/img/article/upload-file.png)
+请求结果中返回了状态码200以及测试报告存储的路径。
+### 获取测试报告静态文件
+Allure测试报告现在已经存在服务器上，可以利用Nginx反向代理机制将这些静态测试报告展示到测试报告管理平台上。这里直接给出Nginx反向代理的配置方法，至于Nginx反向代理的相关内容，大家可以自行学习。
+```editorconfig
+location ^~ /allure-reports/ {
+   alias /data/app/qa_pangu/allure-reports/;
+   index  index.html index.htm;
+}
+```
+从上面的代码中可以看到，在Nginx的配置文件中的HTTP块下的server块下新增加一个location块，location中通过alias指令将url与服务器的某一个路径进行了映射。
+
+配置完成后，当在测试报告管理平台通过url访问测试报告时，就会到/data/app/qa_pangu/allure-reports/路径里面寻找对应的报告内容。比如当我们访问http://pangu.nioint.com/allure-reports/mypytest_1555661880.563715/时，将会到/data/app/qa_pangu/allure-reports/路径下面寻找mypytest_1555661880.563715文件夹，并将这个文件中的index.html展示在页面上。
+
+回顾前面获取测试报告列表时，返回的结果中包含了测试报告的元信息，比如项目名称、测试结果等。现在我们对返回结果进行一下优化，将每一篇测试报告的链接也返回给前端。这样，前端页面可以通过链接跳转到报告的详细页面。修改reports_list视图函数，在其中的for循环中增加下面两行：
+```python
+report['detail_url'] = 'http://pangu.nioint.com/allure-reports/{project}_{created}/'.format(
+                        project=report.get('project'), created=report.get('created'))
+```
+再次请求测试报告列表接口，接口响应中将增加一个'detail_url'字段，请看下面的例子：
+```shell
+{
+  "created": 1555659430.730386,
+  "duration": 0.31386709213256836,
+  "project": "remote_vechile",
+   "exitcode": 1,
+    "summary": {
+        "failed": 2,
+        "xpassed": 1,
+        "skipped": 1,
+        "passed": 2,
+        "total": 6
+   },
+  "start_time": 1555659430.416519,
+  "detail_url": "http://pangu.nioint.com/allure-reports/remote_vechile_1555659430.730386/"
+}
+```
+至此，我们完成了测试报告元数据的存储、获取，测试报告详情的上传和获取。接下来就可以通过Vue.js前段框架来搭建测试报告管理平台的前端页面了。
+### 编写前端页面
+[Vue.js](https://cn.vuejs.org/)是目前比较流行的前端开发框架。它简洁轻量、小巧快速、数据驱动以及组件化的开发模式，赢得了众多前端开发工程师的好评。
+
+下面我们就利用Vue.js实现一个测试报告管理平台前端页面，这里我们不去详细介绍使用Vue.js进开发的方方面面，因为这不是本文的重点，我会将核心代码展示出来并给出代码的解释，让大家了解使用Vue.js开发测试报告管理平台的流程。
+
+
+
+## 总结
+总结前面的实践，展望：自动生成BUG候选列表，与JIRA对接。

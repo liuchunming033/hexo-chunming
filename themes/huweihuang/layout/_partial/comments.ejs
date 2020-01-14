@@ -1,0 +1,18 @@
+<% if(theme.valine.enable) { %>
+    <div class="vcomment"></div>
+    <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+    <script src='//unpkg.com/valine@latest/dist/Valine.min.js'></script>
+    <script>
+        new Valine({
+            el: '.vcomment',
+            visitor: true,
+            appId: '<%=theme.valine.app_id %>',
+            appKey: '<%=theme.valine.app_key %>',
+            placeholder: 'ヾﾉ≧∀≦)o发表你的高见吧, 可以留下邮箱接收回复提醒',
+            avatar: 'mm',
+            pageSize: 10,
+            meta: ['nick','mail'],
+            notify: true
+        })
+    </script>
+<% } %>
